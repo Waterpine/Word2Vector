@@ -1,2 +1,4 @@
 .idea
 data/*
+try.py
+__pycache__/*
