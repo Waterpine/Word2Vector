@@ -63,12 +63,18 @@ def word2vec_model(vocabulary_size, batch_size, embedding_size, num_sampled, wor
     train_graph = tf.Graph()
     with train_graph.as_default():
         inputs = tf.placeholder(tf.int32, shape=[None], name='inputs')
-        labels = tf.placeholder(tf.int32, shape=[None, None], name='labels')
+        labels = tf.placeholder(tf.int32, shape=[None, 1], name='labels')
         embeddings = tf.Variable(tf.random_uniform([vocabulary_size, embedding_size], -1, 1))
         embed = tf.nn.embedding_lookup(embeddings, inputs)
         weights = tf.Variable(tf.truncated_normal([vocabulary_size, embedding_size], stddev=0.1), dtype=tf.float32)
         biases = tf.Variable(tf.zeros(vocabulary_size), dtype=tf.float32)
-        loss = tf.nn.sampled_softmax_loss(weights, biases, labels, embed, num_sampled, vocabulary_size)
+        loss = tf.nn.nce_loss(weights=weights,
+                              biases=biases,
+                              labels=labels,
+                              inputs=embed,
+                              num_sampled=num_sampled,
+                              num_classes=vocabulary_size)
+        # loss = tf.nn.sampled_softmax_loss(weights, biases, labels, embed, num_sampled, vocabulary_size)
         cost = tf.reduce_mean(loss)
         optimizer = tf.train.AdamOptimizer().minimize(cost)
         saver = tf.train.Saver()
@@ -83,6 +89,8 @@ def word2vec_model(vocabulary_size, batch_size, embedding_size, num_sampled, wor
             batches = get_batch(words_num, batch_size, window_size)
             start = time.time()
             for x, y in batches:
+                # print("x:", x)
+                # print("y:", y)
                 feed = {inputs: x,
                         labels: np.array(y)[:, None]}
                 train_loss, _ = sess.run([cost, optimizer], feed_dict=feed)
@@ -103,11 +111,5 @@ if __name__ == '__main__':
     words = read_data()
     words_num, count, dictionary, reverse_dictionary = build_dataset(words, 5)
     word2vec_model(len(dictionary), 128, 150, 100, words_num)
-
-
-
-
-
-
 
 
