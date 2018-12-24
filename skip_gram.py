@@ -16,7 +16,21 @@ def read_data():
     return words
 
 
+def one_hot_embed(num, vocabulary_size):
+    emb_line = np.zeros(vocabulary_size)
+    emb_line[num] = 1
+    return emb_line
+
+
 def build_dataset(words, min_count):
+    """
+    :param words: word list
+    :param min_count: threshold
+    :return: words_num: char to num
+    :return: count: every word appearance times
+    :return: dictionary:
+    :return: reverse_dictionary:
+    """
     count = [['UNK', -1]]
     count.extend([item for item in collections.Counter(words).most_common() if item[1] >= min_count])
     dictionary = dict()
@@ -37,7 +51,14 @@ def build_dataset(words, min_count):
     return words_num, count, dictionary, reverse_dictionary
 
 
+# N-gram
 def get_targets(words_num, idx, window_size=5):
+    """
+    :param words_num:
+    :param idx:
+    :param window_size:
+    :return:
+    """
     target_window = np.random.randint(1, window_size + 1)
     start_point = idx - target_window if (idx - target_window) > 0 else 0
     end_point = idx + target_window
@@ -45,7 +66,13 @@ def get_targets(words_num, idx, window_size=5):
     return list(targets)
 
 
-def get_batch(words_num, batch_size, window_size=5):
+def get_batch(words_num, batch_size, vocabulary_size, window_size=5):
+    """
+    :param words_num:
+    :param batch_size:
+    :param window_size:
+    :return:
+    """
     n_batch = len(words_num) // batch_size
     words_num = words_num[: n_batch * batch_size]
     for idx in range(0, len(words_num), batch_size):
@@ -54,7 +81,10 @@ def get_batch(words_num, batch_size, window_size=5):
         for i in range(len(batch)):
             batch_x = batch[i]
             batch_y = get_targets(batch, i, window_size)
-            x.extend([batch_x] * len(batch_y))
+            x_emb = one_hot_embed(batch_x, vocabulary_size=vocabulary_size)
+            for _ in range(len(batch_y)):
+                x.append(x_emb)
+            # x.extend([batch_x] * len(batch_y))
             y.extend(batch_y)
         yield x, y
 
@@ -62,10 +92,11 @@ def get_batch(words_num, batch_size, window_size=5):
 def word2vec_model(vocabulary_size, batch_size, embedding_size, num_sampled, words_num):
     train_graph = tf.Graph()
     with train_graph.as_default():
-        inputs = tf.placeholder(tf.int32, shape=[None], name='inputs')
+        inputs = tf.placeholder(tf.float32, shape=[None, vocabulary_size], name='inputs')
         labels = tf.placeholder(tf.int32, shape=[None, 1], name='labels')
         embeddings = tf.Variable(tf.random_uniform([vocabulary_size, embedding_size], -1, 1))
-        embed = tf.nn.embedding_lookup(embeddings, inputs)
+        embed = tf.matmul(inputs, embeddings)
+        # embed = tf.nn.embedding_lookup(embeddings, inputs)
         weights = tf.Variable(tf.truncated_normal([vocabulary_size, embedding_size], stddev=0.1), dtype=tf.float32)
         biases = tf.Variable(tf.zeros(vocabulary_size), dtype=tf.float32)
         loss = tf.nn.nce_loss(weights=weights,
@@ -86,7 +117,7 @@ def word2vec_model(vocabulary_size, batch_size, embedding_size, num_sampled, wor
         loss = 0
         sess.run(tf.global_variables_initializer())
         for e in range(1, epochs + 1):
-            batches = get_batch(words_num, batch_size, window_size)
+            batches = get_batch(words_num, batch_size, vocabulary_size, window_size)
             start = time.time()
             for x, y in batches:
                 # print("x:", x)
