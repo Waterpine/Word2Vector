@@ -2,6 +2,7 @@ import csv
 import networkx as nx
 
 
+# read csv file
 def read_file(filename):
     csvFile = open(filename, "r")
     reader = csv.reader(csvFile)
@@ -19,12 +20,13 @@ def read_file(filename):
     return result
 
 
-if __name__ == '__main__':
-    edges_dict = read_file("BlogCatalog-dataset/data/edges.csv")
-    node_label_dict = read_file("BlogCatalog-dataset/data/group-edges.csv")
-    node_dict = read_file("BlogCatalog-dataset/data/nodes.csv")
-    group_dict = read_file("BlogCatalog-dataset/data/groups.csv")
-    G = nx.Graph()
+def main():
+    edges_dict = read_file("BlogCatalog-dataset/data/edges.csv")  # edge_dictionary {start: [end]}
+    node_label_dict = read_file("BlogCatalog-dataset/data/group-edges.csv")  # node_label {node: label}
+    node_dict = read_file("BlogCatalog-dataset/data/nodes.csv")  # node_dictionary {node: node}
+    group_dict = read_file("BlogCatalog-dataset/data/groups.csv")  # group_dictionary {group: group}
+    # generate whole graph
+    G = nx.Graph(label=len(group_dict.keys()))
     for node in node_dict.keys():
         label = node_label_dict[node]
         G.add_node(node, label=label)
@@ -33,9 +35,9 @@ if __name__ == '__main__':
         start = node
         for end in ends:
             G.add_edge(start, end)
+    print(G.graph)
     nx.write_gexf(G, path="../data/data.gexf")
 
 
-
-
-
+if __name__ == '__main__':
+    main()
